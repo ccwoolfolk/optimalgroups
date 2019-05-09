@@ -5,31 +5,40 @@ from pulp import LpProblem, LpMinimize, LpVariable, lpSum, LpMaximize, LpAffineE
 rawdata = pd.read_excel('test-data.xlsx', 'Sheet1', index_col=None, na_values=['NA'])
 prob = LpProblem("Optimal 10x Grouping", LpMinimize)
 
-cost_matrix = [
+cost_matrix = np.array([
     [2,3,1,10],
-    [10,2,1,3],
-]
+    [10,1,2,3],
+])
 
-costs = cost_matrix[0] + cost_matrix[1]
+(n_agents, n_alternatives) = cost_matrix.shape
 
+costs = cost_matrix.flatten()
+
+# Create binary Lp variables for every agent/alternative combination
 choices = []
-for i in range(2):
+for i in range(n_agents):
     choices.append([])
-    for j in range(4):
+    for j in range(n_alternatives):
         choices[i].append(LpVariable(f"Choice{i},{j}", cat='Binary'))
-    prob += choices[i][0] + choices[i][1] + choices[i][2] + choices[i][3] == 1
 
+has_membership = [LpVariable(f"Choice{j}HasMembership", cat='Binary') for j in range(n_alternatives)]
 
-choices_full = choices[0] + choices[1]
-tmp = LpAffineExpression([(choices_full[i], costs[i]) for i in range(len(choices_full))])
+# Add constraints
+for i in range(n_agents):
+    prob += sum(choices[i]) == 1 # Only one result per agent
+
+min_in_alternative = 1 # i.e., min ppl in a group if > 0
+for j in range(n_alternatives):
+    prob += has_membership[j] <= 1
+    for i in range(n_agents):
+        prob += has_membership[j] >= choices[i][j]
+    # If a group has any members, enforce a minimum number
+    prob += sum([choices[i][j] for i in range(n_agents)]) >= min_in_alternative * has_membership[j]
+
+choices_full = np.array(choices).flatten()
 prob += lpSum([choices_full[i] * costs[i] for i in range(len(choices_full))])
-# prob += lpSum(tmp)
-print(choices_full)
-print(costs)
 
 prob.solve()
-print(choices_full[0] * costs[0])
 for v in prob.variables():
     if v.varValue>0:
         print(v.name, "=", v.varValue)
-print(prob.constraints)
