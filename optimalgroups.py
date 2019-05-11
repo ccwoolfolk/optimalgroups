@@ -51,10 +51,20 @@ for j in range(n_alternatives):
 choices_full = np.array(choices).flatten()
 prob += lpSum([choices_full[i] * costs[i] for i in range(len(choices_full))])
 prob.solve()
+optimized_value = prob.objective.value()
+perfect_value = len(persons)
+worst_value = sum([np.nanmax(x) for x in cost_matrix])
+optimization_score = 100 - round(100 * (optimized_value - perfect_value) / (worst_value - perfect_value), 0)
 
 
 # Display results
-print(prob)
-for v in prob.variables():
-    if v.varValue>0:
-        print(v.name, "=", v.varValue)
+print(f"Optimization score (0-100): {optimization_score}")
+print(f"Achieved: {optimized_value}")
+print(f"Perfect: {perfect_value}")
+print(f"Worst: {worst_value}")
+
+for j in range(n_alternatives):
+    selected_persons = [persons[i] for i in range(n_persons) if choices[i][j].varValue == 1.0]
+    if len(selected_persons) > 0:
+        print(f"\n{alternative_names[j]}:")
+        [print(f"  {person}") for person in selected_persons]
