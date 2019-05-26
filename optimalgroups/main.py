@@ -40,7 +40,9 @@ def optimize():
         prob += sum(choices[i]) == 1 # Only one result per person
 
     for j in range(n_alternatives):
-        prob += has_membership[j] <= 1
+        # If the sum of every choice for the alternative is 0, has_membership must be 0
+        prob += has_membership[j] <= sum([choices[i][j] for i in range(n_persons)])
+
         for i in range(n_persons):
             prob += has_membership[j] >= choices[i][j] # has_membership is 1 if any choice is 1
 
