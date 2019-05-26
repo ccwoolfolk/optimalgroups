@@ -10,19 +10,18 @@ NAN_VALUE = 10000 # Arbitrarily high value to force optimization away from empty
 def optimize():
     """Run the optimizer"""
     args = get_args()
-    # Assemble data
     rawdata = pd.read_excel(args.file_path, 'Sheet1', index_col=None, na_values=['NA'])
     prob = LpProblem("Optimal 10x Grouping", LpMinimize)
 
-    alternatives = list(rawdata.columns[1:])
+    alternatives = list(rawdata.columns[1:]) # Column labels
     persons = list(rawdata['Persons'])
-    cost_matrix = rawdata.drop('Persons', 'columns').to_numpy()
+    cost_matrix = rawdata.drop('Persons', 'columns').to_numpy() # Numpy array: [person][class]
     (n_persons, n_alternatives) = cost_matrix.shape
 
     costs = [NAN_VALUE if np.isnan(x) else x for x in cost_matrix.flatten()]
 
 
-    # Create binary LpVariables for every agent/alternative combination
+    # Create binary LpVariables for every person/alternative combination
     choices = []
     make_name = make_var_name_factory(persons, alternatives)
     for i in range(n_persons):
@@ -34,13 +33,17 @@ def optimize():
 
 
     # Add constraints
+    # See https://cs.stackexchange.com/questions/12102/express-boolean-logic-operations-in-zero-one-
+    #     integer-linear-programming-ilp
+    # for a good explanation of logical operations (AND, OR, etc.) via linear constraints
     for i in range(n_persons):
-        prob += sum(choices[i]) == 1 # Only one result per agent
+        prob += sum(choices[i]) == 1 # Only one result per person
 
     for j in range(n_alternatives):
         prob += has_membership[j] <= 1
         for i in range(n_persons):
-            prob += has_membership[j] >= choices[i][j]
+            prob += has_membership[j] >= choices[i][j] # has_membership is 1 if any choice is 1
+
         # If a group has any members, enforce a minimum number
         prob += sum([choices[i][j] for i in range(n_persons)]) >= args.min * has_membership[j]
 
